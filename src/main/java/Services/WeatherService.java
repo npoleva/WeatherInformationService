@@ -35,7 +35,8 @@ public class WeatherService {
                     dto.getCity(),
                     dto.getHourly(),
                     dto.getChartBase64(),
-                    "HIT"
+                    "HIT",
+                    dto.getAnalysis()
             );
         }
 
@@ -53,10 +54,51 @@ public class WeatherService {
 
         String chartBase64 = generateChart(w.getTimes(), w.getTemperatures(), city);
 
-        WeatherResponseDto dto = new WeatherResponseDto(city, list, chartBase64, "MISS");
+        WeatherAnalysis analysis = analyzeWeatherData(list);
+
+        WeatherResponseDto dto = new WeatherResponseDto(city, list, chartBase64, "MISS", analysis);
 
         cache.save(key, mapper.writeValueAsString(dto));
         return dto;
+    }
+
+    private WeatherAnalysis analyzeWeatherData(List<WeatherPointDto> data) {
+        if (data.isEmpty()) {
+            return new WeatherAnalysis(0, 0, 0, "Недостаточно данных", "");
+        }
+
+        double maxTemp = data.stream().mapToDouble(WeatherPointDto::getTemperature).max().orElse(0);
+        double minTemp = data.stream().mapToDouble(WeatherPointDto::getTemperature).min().orElse(0);
+
+        double firstTemp = data.get(0).getTemperature();
+        double lastTemp = data.get(data.size() - 1).getTemperature();
+        double trend = lastTemp - firstTemp;
+
+        String summary = generateSummary(trend, maxTemp, minTemp);
+        String recommendation = generateRecommendation(trend, maxTemp, minTemp);
+
+        return new WeatherAnalysis(trend, maxTemp, minTemp, summary, recommendation);
+    }
+
+    private String generateSummary(double trend, double maxTemp, double minTemp) {
+        StringBuilder sb = new StringBuilder();
+
+        if (trend > 2) sb.append("Strong warming");
+        else if (trend > 0) sb.append("Slight warming");
+        else if (trend < -2) sb.append("Strong cooling");
+        else if (trend < 0) sb.append("Slight cooling");
+        else sb.append("Temperature is stable");
+
+        sb.append(String.format(". Range: %.1f°C to %.1f°C", minTemp, maxTemp));
+        return sb.toString();
+    }
+
+    private String generateRecommendation(double trend, double maxTemp, double minTemp) {
+        if (minTemp < 0) return "Dress warmly! Possible ice";
+        if (maxTemp > 25) return "Hot! Don't forget water and headwear";
+        if (trend < -3) return "Getting colder - take a jacket";
+        if (trend > 3) return "Getting warmer - you can dress lighter";
+        return "Weather is stable, dress for the season";
     }
 
     private String generateChart(List<String> times, List<Double> temps, String city) throws Exception {
