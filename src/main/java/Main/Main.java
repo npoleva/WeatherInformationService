@@ -15,10 +15,12 @@ public class Main {
         WeatherController controller = new WeatherController(service);
 
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+
+        server.createContext("/", controller::handle);
         server.createContext("/weather", controller::handle);
+
         server.start();
 
-        System.out.println("Server started on http://localhost:8080/weather?city=Moscow");
+        System.out.println("Server started on http://localhost:8080/");
     }
 }
-

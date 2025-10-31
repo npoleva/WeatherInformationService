@@ -8,47 +8,103 @@ import Models.WeatherResponseDto;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class WeatherController {
     private final WeatherService service;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public WeatherController(WeatherService service) {
-        System.out.println("In constructor!!!");
         this.service = service;
     }
 
     public void handle(HttpExchange exchange) {
         try {
-            URI uri = exchange.getRequestURI();
-            System.out.println("Before getting query!!!");
-            String query = uri.getQuery();
-            if (query == null || !query.contains("city=")) {
-                send(exchange, 400, "Missing ?city= parameter");
+            String path = exchange.getRequestURI().getPath();
+
+            if (path.equals("/") || path.equals("/static/index.html")) {
+                serveStaticFile(exchange, "src/main/resources/static/index.html");
                 return;
             }
-            String city = query.split("=")[1];
 
-            System.out.println("Before calling service!!!");
+            if (path.equals("/weather")) {
+                handleWeatherApi(exchange);
+                return;
+            }
 
-            WeatherResponseDto dto = service.getWeather(city);
+            send(exchange, 404, "Not Found");
 
-            System.out.println("DTO: " + dto);
+        } catch (Exception e) {
+            send(exchange, 500, "Error: " + e.getMessage());
+        }
+    }
 
-            String html = "<html><head><meta charset='utf-8'></head><body>" +
-                    "<h2>Погода в " + city + "</h2>" +
-                    "<img src='data:image/png;base64," + dto.getChartBase64() + "'><br><br>" +
-                    "<pre>" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(dto) + "</pre>" +
-                    "</body></html>";
+    private void handleWeatherApi(HttpExchange exchange) throws Exception {
+        URI uri = exchange.getRequestURI();
+        String query = uri.getQuery();
 
-            byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+        if (query == null || !query.contains("city=")) {
+            sendJson(exchange, 400, "{\"error\": \"Missing ?city= parameter\"}");
+            return;
+        }
+
+        String city = query.split("=")[1];
+        WeatherResponseDto dto = service.getWeather(city);
+
+        String jsonResponse = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(dto);
+        sendJson(exchange, 200, jsonResponse);
+    }
+
+    private void serveStaticFile(HttpExchange exchange, String filePath) throws Exception {
+        System.out.println("=== DEBUG: Serving static file ===");
+        System.out.println("Requested path: " + filePath);
+
+        Path path = Paths.get(filePath);
+        System.out.println("Absolute path: " + path.toAbsolutePath());
+        System.out.println("File exists: " + Files.exists(path));
+
+        if (!Files.exists(path)) {
+            System.out.println("ERROR: File not found!");
+            String errorHtml = "<html><body><h1>Test Page</h1><p>File not found, but server works</p></body></html>";
+            byte[] bytes = errorHtml.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
             exchange.sendResponseHeaders(200, bytes.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(bytes);
             }
+            return;
+        }
+
+        try {
+            byte[] fileBytes = Files.readAllBytes(path);
+            System.out.println("File size: " + fileBytes.length + " bytes");
+
+            String contentPreview = new String(fileBytes, StandardCharsets.UTF_8);
+            System.out.println("Content preview: " + contentPreview.substring(0, Math.min(200, contentPreview.length())));
+
+            exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, fileBytes.length);
+
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(fileBytes);
+            }
+            System.out.println("File served successfully");
+
         } catch (Exception e) {
-            send(exchange, 500, "Ошибка: " + e.getMessage());
+            System.out.println("ERROR reading file: " + e.getMessage());
+            e.printStackTrace();
+            send(exchange, 500, "Error reading file");
+        }
+    }
+
+    private void sendJson(HttpExchange ex, int code, String json) throws Exception {
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        ex.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+        ex.sendResponseHeaders(code, bytes.length);
+        try (OutputStream os = ex.getResponseBody()) {
+            os.write(bytes);
         }
     }
 

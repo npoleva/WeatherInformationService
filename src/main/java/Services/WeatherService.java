@@ -29,17 +29,21 @@ public class WeatherService {
         String key = "weather:" + city.toLowerCase();
         String cached = cache.find(key);
 
-        if (cached != null)
-            return mapper.readValue(cached, WeatherResponseDto.class);
+        if (cached != null) {
+            WeatherResponseDto dto = mapper.readValue(cached, WeatherResponseDto.class);
+            return new WeatherResponseDto(
+                    dto.getCity(),
+                    dto.getHourly(),
+                    dto.getChartBase64(),
+                    "HIT"
+            );
+        }
 
         System.out.println("Before calling api!!!");
 
         Coordinates c = api.getCoordinates(city);
-
         System.out.println("After getting the coordinates!!!");
-
         WeatherData w = api.getWeather(c.getLatitude(), c.getLongitude());
-
         System.out.println("After calling api!!!");
 
         List<WeatherPointDto> list = new ArrayList<>();
@@ -48,7 +52,8 @@ public class WeatherService {
         }
 
         String chartBase64 = generateChart(w.getTimes(), w.getTemperatures(), city);
-        WeatherResponseDto dto = new WeatherResponseDto(city, list, chartBase64);
+
+        WeatherResponseDto dto = new WeatherResponseDto(city, list, chartBase64, "MISS");
 
         cache.save(key, mapper.writeValueAsString(dto));
         return dto;
@@ -77,6 +82,4 @@ public class WeatherService {
         ImageIO.write(image, "png", baos);
         return Base64.getEncoder().encodeToString(baos.toByteArray());
     }
-
 }
-
