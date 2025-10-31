@@ -1,9 +1,0 @@
-/Users/npoleva/IdeaProjects/WeatherInformationService/src/main/java/Controllers/WeatherController.java
-/Users/npoleva/IdeaProjects/WeatherInformationService/src/main/java/Entities/Coordinates.java
-/Users/npoleva/IdeaProjects/WeatherInformationService/src/main/java/Entities/WeatherData.java
-/Users/npoleva/IdeaProjects/WeatherInformationService/src/main/java/Main/Main.java
-/Users/npoleva/IdeaProjects/WeatherInformationService/src/main/java/Models/WeatherPointDto.java
-/Users/npoleva/IdeaProjects/WeatherInformationService/src/main/java/Models/WeatherResponseDto.java
-/Users/npoleva/IdeaProjects/WeatherInformationService/src/main/java/Repositories/WeatherCacheRepository.java
-/Users/npoleva/IdeaProjects/WeatherInformationService/src/main/java/Services/WeatherApiClient.java
-/Users/npoleva/IdeaProjects/WeatherInformationService/src/main/java/Services/WeatherService.java
