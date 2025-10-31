@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Analytics Service</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .search-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .error {
+            color: #dc3545;
+            padding: 10px;
+            background: #f8d7da;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .weather-result {
+            margin-top: 30px;
+        }
+        .chart-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .chart-container img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .weather-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .weather-table th, .weather-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .weather-table th {
+            background-color: #f8f9fa;
+        }
+        .cache-info {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🌤️ Weather Analytics Service</h1>
+
+    <div class="search-form">
+        <input type="text" id="cityInput" placeholder="Введите город (например, Moscow, London, Tokyo...)" value="">
+        <button onclick="getWeather()">Получить погоду</button>
+    </div>
+
+    <div id="loading" class="loading">
+        Загрузка данных...
+    </div>
+
+    <div id="error" class="error" style="display: none;"></div>
+
+    <div id="weatherResult" class="weather-result" style="display: none;">
+        <div id="cacheInfo" class="cache-info" style="display: none;"></div>
+
+        <div class="chart-container">
+            <img id="weatherChart" src="" alt="График температуры">
+        </div>
+
+        <table class="weather-table" id="weatherTable">
+            <thead>
+            <tr>
+                <th>Время</th>
+                <th>Температура (°C)</th>
+            </tr>
+            </thead>
+            <tbody id="tableBody">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    async function getWeather() {
+        const city = document.getElementById('cityInput').value.trim();
+        if (!city) {
+            showError('Enter a city');
+            return;
+        }
+
+        showLoading(true);
+        hideError();
+        hideWeatherResult();
+
+        try {
+            const response = await fetch(`/weather?city=${encodeURIComponent(city)}`);
+
+            if (!response.ok) {
+                throw new Error(`Error: ${response.status} - ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            displayWeather(data);
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    function displayWeather(data) {
+        document.getElementById('weatherChart').src = `data:image/png;base64,${data.chartBase64}`;
+
+        const tableBody = document.getElementById('tableBody');
+        tableBody.innerHTML = '';
+
+        data.hourly.forEach(hour => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                    <td>${formatTime(hour.time)}</td>
+                    <td>${hour.temperature.toFixed(1)}°C</td>
+                `;
+            tableBody.appendChild(row);
+        });
+
+        const cacheInfo = document.getElementById('cacheInfo');
+        if (data.cacheStatus) {
+            cacheInfo.textContent = `From cache: ${data.cacheStatus === 'HIT' ? 'yes' : 'no'}`;
+            cacheInfo.style.display = 'block';
+        } else {
+            cacheInfo.style.display = 'none';
+        }
+
+        showWeatherResult();
+    }
+
+    function formatTime(timeString) {
+        const date = new Date(timeString);
+        return date.toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function showLoading(show) {
+        document.getElementById('loading').style.display = show ? 'block' : 'none';
+    }
+
+    function showError(message) {
+        const errorDiv = document.getElementById('error');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+    }
+
+    function hideError() {
+        document.getElementById('error').style.display = 'none';
+    }
+
+    function showWeatherResult() {
+        document.getElementById('weatherResult').style.display = 'block';
+    }
+
+    function hideWeatherResult() {
+        document.getElementById('weatherResult').style.display = 'none';
+    }
+
+    document.getElementById('cityInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            getWeather();
+        }
+    });
+
+    window.addEventListener('load', function() {
+        document.getElementById('cityInput').focus();
+    });
+</script>
+</body>
+</html>
